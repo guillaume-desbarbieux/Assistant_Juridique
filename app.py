@@ -25,7 +25,7 @@ if st.button("📤 Envoyer") and user_input.strip():
         docs_and_scores = retriever.vectorstore.similarity_search_with_score(user_input, k=5)
 
         # Optionnel : seuil de similarité à ajuster si besoin
-        SIMILARITY_THRESHOLD = 0.7
+        SIMILARITY_THRESHOLD = 1
 
         # On garde uniquement les documents avec une similarité suffisante
         filtered_docs = [doc for doc, score in docs_and_scores if score >= SIMILARITY_THRESHOLD]
@@ -55,7 +55,8 @@ if st.button("📤 Envoyer") and user_input.strip():
         
         # Création du prompt personnalisé
         prompt_template = """
-Tu es un assistant juridique expert. Tu dois répondre en français, de manière claire et précise.
+Tu es un assistant juridique expert. Tu dois faciliter le travail des juristes en présentant les documents qui peuvent leur être utile pour répondre.
+Tu dois répondre en français, de manière claire et précise.
 Base ta réponse uniquement sur les documents fournis ci-dessous.
 Ne fais pas de suppositions en dehors des documents.
 
@@ -96,6 +97,5 @@ Réponse en français :
             for idx, (doc, score) in enumerate(docs_and_scores, 1):
                 if score >= SIMILARITY_THRESHOLD:
                     source = os.path.basename(doc.metadata.get('source', 'inconnu'))
-                    percent = int(score * 100)
-                    st.markdown(f"### 📄 Document {idx} — {source} (🔍 Pertinence : {percent}%)")
+                    st.markdown(f"### 📄 Document {idx} — {source} (🔍 Pertinence : {score})")
                     st.code(doc.page_content[:3000], language='markdown')
