@@ -103,7 +103,7 @@ Réponse en français :
             try:
                 context_text = "\n\n".join([
                     f"[Pertinence : {score:.2f}] {doc.page_content}"
-                    for doc, score in docs_and_scores if score >= SIMILARITY_THRESHOLD
+                    for doc, score in docs_and_scores if score >= threshold_value
                 ])
 
                 result = qa_chain.run({"context": context_text, "question": user_input})
@@ -115,7 +115,7 @@ Réponse en français :
 
             st.subheader("📎 Documents utilisés")
             for idx, (doc, score) in enumerate(docs_and_scores, 1):
-                if score >= SIMILARITY_THRESHOLD:
+                if score >= threshold_value:
                     source = os.path.basename(doc.metadata.get('source', 'inconnu'))
                     st.markdown(f"### 📄 Document {idx} — {source} (🔍 Pertinence : {score})")
                     st.code(doc.page_content[:3000], language='markdown')
