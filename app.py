@@ -1,0 +1,61 @@
+import streamlit as st
+from langchain.vectorstores import Chroma
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.llms import Ollama
+from langchain.chains.qa_with_sources import load_qa_with_sources_chain
+import os
+
+st.set_page_config(page_title="Assistant Juridique IA", layout="wide")
+st.title("📚 Assistant Juridique avec IA")
+st.write("Posez une question juridique en lien avec le droit du travail, la jurisprudence ou les clauses contractuelles.")
+
+# Champ de saisie utilisateur
+user_input = st.text_area("✉️ Votre question :", height=200)
+
+if st.button("📤 Envoyer") and user_input.strip():
+    with st.spinner("Recherche et génération de la réponse..."):
+
+        # Charger la base vectorielle
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        db = Chroma(persist_directory="./db", embedding_function=embeddings)
+        retriever = db.as_retriever(search_kwargs={"k": 5})
+
+        # Récupération des documents pertinents
+        docs = retriever.get_relevant_documents(user_input)
+
+        # LLM via Ollama
+        model_name = "mistral:latest"
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+
+        # Optionnel : test rapide que Ollama est accessible
+        import requests
+
+        def check_ollama_is_alive():
+            try:
+                r = requests.get(f"{base_url}/api/generate")
+                if r.status_code in [404, 405]:
+                    return True
+                else:
+                    st.error(f"Ollama ne répond pas correctement (code {r.status_code})")
+                    st.stop()
+            except Exception as e:
+                st.error(f"Ollama semble injoignable : {e}")
+                st.stop()
+        check_ollama_is_alive()
+
+        oai = Ollama(model=model_name, base_url=base_url)
+        
+        qa_chain = load_qa_with_sources_chain(oai, chain_type="stuff")
+        try:
+            result = qa_chain({"input_documents": docs, "question": user_input}, return_only_outputs=True)
+            st.subheader("✅ Réponse générée")
+            st.write(result["output_text"])
+        except Exception as e:
+            st.error(f"Erreur lors de la génération de la réponse : {e}")
+            st.stop()
+        st.subheader("📎 Sources utilisées")
+        if not docs:
+            st.warning("Aucun document pertinent trouvé pour cette question.")
+
+        for doc in docs:
+            st.markdown(f"- **{os.path.basename(doc.metadata.get('source', ''))}**")

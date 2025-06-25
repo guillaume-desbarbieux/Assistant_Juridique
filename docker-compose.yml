@@ -1,0 +1,35 @@
+services:
+  ollama:
+    image: ollama/ollama
+    container_name: ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama:/root/.ollama
+    restart: unless-stopped
+    networks:
+      - assistant-net
+    environment:
+      - OLLAMA_MODELS=mistral
+      
+  assistant:
+    build: .
+    container_name: assistant-juridique
+    depends_on:
+      - ollama
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+    volumes:
+      - .:/app           # <-- monte tout le dossier projet dans le conteneur
+    command: streamlit run app.py --server.port=7860 --server.address=0.0.0.0
+    ports:
+      - "7860:7860"
+    networks:
+      - assistant-net
+
+volumes:
+  ollama:
+
+networks:
+  assistant-net:
+    driver: bridge
