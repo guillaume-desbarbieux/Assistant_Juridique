@@ -29,6 +29,8 @@ if st.button("📤 Envoyer") and user_input.strip():
 
         # On garde uniquement les documents avec une similarité suffisante
         filtered_docs = [doc for doc, score in docs_and_scores if score >= SIMILARITY_THRESHOLD]
+        context_text = "\n\n".join([doc.page_content for doc in filtered_docs])
+
 
                # LLM via Ollama
         model_name = "mistral:latest"
@@ -79,9 +81,9 @@ Réponse en français :
         else:
             # On lance la chaîne QA avec les documents filtrés
             try:
-                result = qa_chain.run({"context": filtered_docs, "question": user_input})
+                result = qa_chain.run({"context": context_text, "question": user_input})
                 st.subheader("✅ Réponse générée")
-                st.write(result["output_text"])
+                st.write(result)
             except Exception as e:
                 st.error(f"Erreur lors de la génération de la réponse : {e}")
                 st.stop()
