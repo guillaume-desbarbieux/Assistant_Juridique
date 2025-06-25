@@ -8,6 +8,26 @@ import os
 
 st.set_page_config(page_title="Assistant Juridique IA", layout="wide")
 st.title("📚 Assistant Juridique avec IA")
+
+st.sidebar.header("🔧 Paramètres avancés")
+
+max_docs = st.sidebar.slider(
+    "Nombre maximal de documents à utiliser",
+    min_value=1,
+    max_value=20,
+    value=5,
+    step=1
+)
+
+similarity_threshold = st.sidebar.slider(
+    "Seuil de pertinence (%)",
+    min_value=0,
+    max_value=500,
+    value=70,
+    step=5
+)
+
+
 st.write("Posez une question juridique en lien avec le droit du travail, la jurisprudence ou les clauses contractuelles.")
 
 # Champ de saisie utilisateur
@@ -19,16 +39,16 @@ if st.button("📤 Envoyer") and user_input.strip():
         # Charger la base vectorielle
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
         db = Chroma(persist_directory="./db", embedding_function=embeddings)
-        retriever = db.as_retriever(search_kwargs={"k": 5})
+        retriever = db.as_retriever(search_kwargs={"k": max_docs})
 
        # Récupération des documents pertinents avec score
-        docs_and_scores = retriever.vectorstore.similarity_search_with_score(user_input, k=5)
+        docs_and_scores = retriever.vectorstore.similarity_search_with_score(user_input, k=max_docs)
 
         # Optionnel : seuil de similarité à ajuster si besoin
-        SIMILARITY_THRESHOLD = 1
-
+        threshold_value = similarity_threshold / 100
+        
         # On garde uniquement les documents avec une similarité suffisante
-        filtered_docs = [doc for doc, score in docs_and_scores if score >= SIMILARITY_THRESHOLD]
+        filtered_docs = [(doc, score) for doc, score in docs_and_scores if score >= threshold_value]
 
 
         # LLM via Ollama
