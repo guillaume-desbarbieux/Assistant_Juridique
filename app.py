@@ -29,10 +29,9 @@ if st.button("📤 Envoyer") and user_input.strip():
 
         # On garde uniquement les documents avec une similarité suffisante
         filtered_docs = [doc for doc, score in docs_and_scores if score >= SIMILARITY_THRESHOLD]
-        context_text = "\n\n".join([doc.page_content for doc in filtered_docs])
 
 
-               # LLM via Ollama
+        # LLM via Ollama
         model_name = "mistral:latest"
         base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 
@@ -54,7 +53,7 @@ if st.button("📤 Envoyer") and user_input.strip():
 
         oai = Ollama(model=model_name, base_url=base_url)
         
-           # Création du prompt personnalisé
+        # Création du prompt personnalisé
         prompt_template = """
 Tu es un assistant juridique expert. Tu dois répondre en français, de manière claire et précise.
 Base ta réponse uniquement sur les documents fournis ci-dessous.
@@ -78,9 +77,14 @@ Réponse en français :
 
         if not filtered_docs:
             st.warning("❗ Aucun document suffisamment pertinent trouvé pour cette question.")
+            st.info("L'assistant ne peut pas formuler de réponse fiable sans documents de référence.")
         else:
-            # On lance la chaîne QA avec les documents filtrés
             try:
+                context_text = "\n\n".join([
+                    f"[Pertinence : {score:.2f}] {doc.page_content}"
+                    for doc, score in docs_and_scores if score >= SIMILARITY_THRESHOLD
+                ])
+
                 result = qa_chain.run({"context": context_text, "question": user_input})
                 st.subheader("✅ Réponse générée")
                 st.write(result)
@@ -88,10 +92,10 @@ Réponse en français :
                 st.error(f"Erreur lors de la génération de la réponse : {e}")
                 st.stop()
 
-            st.subheader("📎 Sources utilisées")
-
-            if not docs:
-                st.warning("Aucun document pertinent trouvé pour cette question.")
-
-            for doc in filtered_docs:
-                st.markdown(f"- **{os.path.basename(doc.metadata.get('source', ''))}**")
+            st.subheader("📎 Documents utilisés")
+            for idx, (doc, score) in enumerate(docs_and_scores, 1):
+                if score >= SIMILARITY_THRESHOLD:
+                    source = os.path.basename(doc.metadata.get('source', 'inconnu'))
+                    percent = int(score * 100)
+                    st.markdown(f"### 📄 Document {idx} — {source} (🔍 Pertinence : {percent}%)")
+                    st.code(doc.page_content[:3000], language='markdown')
