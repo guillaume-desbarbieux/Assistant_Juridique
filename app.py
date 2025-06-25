@@ -2,7 +2,8 @@ import streamlit as st
 from langchain.vectorstores import Chroma
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.llms import Ollama
-from langchain.chains.qa_with_sources import load_qa_with_sources_chain
+from langchain.prompts import PromptTemplate
+from langchain.chains import LLMChain
 import os
 
 st.set_page_config(page_title="Assistant Juridique IA", layout="wide")
@@ -22,6 +23,9 @@ if st.button("📤 Envoyer") and user_input.strip():
 
         # Récupération des documents pertinents
         docs = retriever.get_relevant_documents(user_input)
+
+        # Concaténation des contenus documents
+        docs_text = "\n\n".join([doc.page_content for doc in docs])
 
         # LLM via Ollama
         model_name = "mistral:latest"
