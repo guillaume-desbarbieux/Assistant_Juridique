@@ -27,7 +27,7 @@ if st.button("📤 Envoyer") and user_input.strip():
         model_name = "mistral:latest"
         base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 
-        # Optionnel : test rapide que Ollama est accessible
+        # Vérification Ollama accessible
         import requests
 
         def check_ollama_is_alive():
@@ -45,11 +45,32 @@ if st.button("📤 Envoyer") and user_input.strip():
 
         oai = Ollama(model=model_name, base_url=base_url)
         
-        qa_chain = load_qa_with_sources_chain(oai, chain_type="stuff")
+           # Création du prompt personnalisé
+        prompt_template = """
+Tu es un assistant juridique expert. Tu dois répondre en français, de manière claire et précise.
+Base ta réponse uniquement sur les documents fournis ci-dessous.
+Ne fais pas de suppositions en dehors des documents.
+
+Documents:
+{context}
+
+Question:
+{question}
+
+Réponse en français :
+"""
+        prompt = PromptTemplate(
+            input_variables=["context", "question"],
+            template=prompt_template
+        )
+
+         # Création de la chaîne LLMChain avec le prompt
+        qa_chain = LLMChain(llm=oai, prompt=prompt)
+
         try:
-            result = qa_chain({"input_documents": docs, "question": user_input}, return_only_outputs=True)
+            result = qa_chain.run({"context": docs_text, "question": user_input})
             st.subheader("✅ Réponse générée")
-            st.write(result["output_text"])
+            st.write(result)
         except Exception as e:
             st.error(f"Erreur lors de la génération de la réponse : {e}")
             st.stop()
