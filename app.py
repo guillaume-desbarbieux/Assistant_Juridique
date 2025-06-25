@@ -21,13 +21,16 @@ if st.button("📤 Envoyer") and user_input.strip():
         db = Chroma(persist_directory="./db", embedding_function=embeddings)
         retriever = db.as_retriever(search_kwargs={"k": 5})
 
-        # Récupération des documents pertinents
-        docs = retriever.get_relevant_documents(user_input)
+       # Récupération des documents pertinents avec score
+        docs_and_scores = retriever.vectorstore.similarity_search_with_score(user_input, k=5)
 
-        # Concaténation des contenus documents
-        docs_text = "\n\n".join([doc.page_content for doc in docs])
+        # Optionnel : seuil de similarité à ajuster si besoin
+        SIMILARITY_THRESHOLD = 0.7
 
-        # LLM via Ollama
+        # On garde uniquement les documents avec une similarité suffisante
+        filtered_docs = [doc for doc, score in docs_and_scores if score >= SIMILARITY_THRESHOLD]
+
+               # LLM via Ollama
         model_name = "mistral:latest"
         base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 
@@ -68,19 +71,25 @@ Réponse en français :
             template=prompt_template
         )
 
-         # Création de la chaîne LLMChain avec le prompt
+        # Création de la chaîne LLMChain avec le prompt
         qa_chain = LLMChain(llm=oai, prompt=prompt)
 
-        try:
-            result = qa_chain.run({"context": docs_text, "question": user_input})
-            st.subheader("✅ Réponse générée")
-            st.write(result)
-        except Exception as e:
-            st.error(f"Erreur lors de la génération de la réponse : {e}")
-            st.stop()
-        st.subheader("📎 Sources utilisées")
-        if not docs:
-            st.warning("Aucun document pertinent trouvé pour cette question.")
+        if not filtered_docs:
+            st.warning("❗ Aucun document suffisamment pertinent trouvé pour cette question.")
+        else:
+            # On lance la chaîne QA avec les documents filtrés
+            try:
+                result = qa_chain.run({"context": filtered_docs, "question": user_input})
+                st.subheader("✅ Réponse générée")
+                st.write(result["output_text"])
+            except Exception as e:
+                st.error(f"Erreur lors de la génération de la réponse : {e}")
+                st.stop()
 
-        for doc in docs:
-            st.markdown(f"- **{os.path.basename(doc.metadata.get('source', ''))}**")
+            st.subheader("📎 Sources utilisées")
+
+            if not docs:
+                st.warning("Aucun document pertinent trouvé pour cette question.")
+
+            for doc in filtered_docs:
+                st.markdown(f"- **{os.path.basename(doc.metadata.get('source', ''))}**")
