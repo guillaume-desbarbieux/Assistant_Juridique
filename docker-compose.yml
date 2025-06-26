@@ -11,7 +11,7 @@ services:
       - assistant-net
     environment:
       - OLLAMA_MODELS=mistral
-    entrypoint: [ "sh", "-c", "ollama run mistral || true && sleep infinity" ]
+    entrypoint: [ "sh", "-c", "ollama serve & sleep 2 && ollama run mistral || true && sleep infinity" ]
       
   assistant:
     build: .
