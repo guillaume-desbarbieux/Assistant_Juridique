@@ -38,6 +38,14 @@ st.write("Posez une question juridique en lien avec le droit du travail, la juri
 # Champ de saisie utilisateur
 user_input = st.text_area("✉️ Votre question :", height=200)
 
+def distance_to_percent(score, max_dist=10.0):
+    """
+    Convertit une distance en score de pertinence (%) inversée
+    en supposant que les distances sont entre 0 et max_dist
+    """
+    score = max(0, min(score, max_dist))  # clamp
+    return round((1 - score / max_dist) * 100)
+
 if st.button("📤 Envoyer") and user_input.strip():
     with st.spinner("Recherche et génération de la réponse..."):
 
@@ -51,9 +59,8 @@ if st.button("📤 Envoyer") and user_input.strip():
 
         # Optionnel : seuil de similarité à ajuster si besoin
         threshold_value = similarity_threshold / 100
-        
-        # On garde uniquement les documents avec une similarité suffisante
-        filtered_docs = [(doc, score) for doc, score in docs_and_scores if score >= threshold_value]
+        # On garde uniquement les documents avec une distance suffisante (score <= seuil)
+        filtered_docs = [(doc, score) for doc, score in docs_and_scores if score <= threshold_value]
 
 
         # LLM via Ollama
@@ -109,8 +116,8 @@ Réponse en français :
         else:
             try:
                 context_text = "\n\n".join([
-                    f"[Pertinence : {score:.2f}] {doc.page_content}"
-                    for doc, score in docs_and_scores if score >= threshold_value
+                    f"[Pertinence : {distance_to_percent(score)}%] {doc.page_content}"
+                    for doc, score in docs_and_scores if score <= threshold_value
                 ])
 
                 result = qa_chain.run({"context": context_text, "question": user_input})
@@ -122,9 +129,10 @@ Réponse en français :
 
             st.subheader("📎 Documents utilisés")
             for idx, (doc, score) in enumerate(docs_and_scores, 1):
-                if score >= threshold_value:
+                if score <= threshold_value:
                     source = os.path.basename(doc.metadata.get('source', 'inconnu'))
-                    st.markdown(f"### 📄 Document {idx} — {source} (🔍 Pertinence : {score})")
+                    pertinence = distance_to_percent(score)
+                    st.markdown(f"### 📄 Document {idx} — {source} (🔍 Pertinence : {pertinence}%)")
                     st.markdown(
                         f"""
                         <div style="white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;">
