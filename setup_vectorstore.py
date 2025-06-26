@@ -1,8 +1,8 @@
 import os
 from langchain_community.document_loaders import DirectoryLoader
-from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+import tqdm
 
 def build_vectorstore():
     # Définir un chemin absolu fiable pour la persistance
@@ -39,14 +39,20 @@ def build_vectorstore():
 
     # Embeddings
     print("🔍 Création des embeddings...")
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
+    from langchain_community.embeddings import HuggingFaceEmbeddings
+    embeddings_model = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
+
+    # Génération des embeddings avec barre de progression
+    all_texts = [chunk.page_content for chunk in chunks]
+    embeddings_list = []
+    for text in tqdm.tqdm(all_texts, desc="Encodage des chunks", unit="chunk"):
+        embeddings_list.append(embeddings_model.embed_documents([text])[0])
 
     # Création ou mise à jour de la base vectorielle
     print("🔄 Création ou mise à jour de la base vectorielle...")
-
-    vectordb = Chroma.from_documents(
-        chunks,
-        embedding=embeddings,
+    vectordb = Chroma.from_embeddings(
+        all_texts,
+        embeddings_list,
         persist_directory=persist_directory
     )
     print("📦 Base vectorielle créée avec succès.")
@@ -59,7 +65,7 @@ def build_vectorstore():
 
     # Vérification du contenu de la base vectorielle
     print("🔍 Vérification du contenu de la base vectorielle...")
-    vectordb = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
+    vectordb = Chroma(persist_directory=persist_directory, embedding_function=embeddings_model)
     print(f"📊 Nombre de documents dans la base vectorielle : {len(vectordb)}")
     print("✅ Base vectorielle prête à l'emploi.")
 
