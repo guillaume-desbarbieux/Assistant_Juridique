@@ -9,6 +9,11 @@ import os
 st.set_page_config(page_title="Assistant Juridique IA", layout="wide")
 st.title("📚 Assistant Juridique avec IA")
 
+st.sidebar.markdown("🧠 **Modèle d'embedding :** `paraphrase-multilingual-mpnet-base-v2`")
+st.sidebar.markdown("🗂️ **Base vectorielle :** `Chroma`")
+st.sidebar.markdown("💬 **Modèle LLM :** `mistral:latest` via Ollama")
+
+
 st.sidebar.header("🔧 Paramètres avancés")
 
 max_docs = st.sidebar.slider(
@@ -22,8 +27,8 @@ max_docs = st.sidebar.slider(
 similarity_threshold = st.sidebar.slider(
     "Seuil de pertinence (%)",
     min_value=0,
-    max_value=500,
-    value=70,
+    max_value=200,
+    value=90,
     step=5
 )
 
