@@ -19,26 +19,57 @@ def build_vectorstore():
     documents = loader.load()
 
     # Split les documents
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=100, 
+    MIN_LEN_NO_SPLIT = 1000
+
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=120,
         separators=["\n\n", "\n", ".", " ", ""]
     )
-    chunks = text_splitter.split_documents(documents)
+    print(f"📄 Nombre de documents chargés : {len(documents)}")
+
+    chunks = []
+    for doc in documents:
+        if len(doc.page_content) < MIN_LEN_NO_SPLIT:
+            chunks.append(doc)
+        else:
+            chunks.extend(splitter.split_documents([doc]))
+
+    print(f"📚 Nombre de chunks créés : {len(chunks)}")
 
     # Embeddings
+    print("🔍 Création des embeddings...")
     embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
     # Création ou mise à jour de la base vectorielle
+    print("🔄 Création ou mise à jour de la base vectorielle...")
+
     vectordb = Chroma.from_documents(
         chunks,
         embedding=embeddings,
         persist_directory=persist_directory
     )
+    print("📦 Base vectorielle créée avec succès.")
 
+    # Persist la base vectorielle
+    print("💾 Persistance de la base vectorielle en cours...")
     vectordb.persist()
-    print("✅ Base vectorielle créée et persistée avec succès.")
+    vectordb = None  # Libération de la mémoire
+    print("💾 Base vectorielle persistée avec succès.")
 
+    # Vérification du contenu de la base vectorielle
+    print("🔍 Vérification du contenu de la base vectorielle...")
+    vectordb = Chroma(persist_directory=persist_directory, embedding_function=embeddings)
+    print(f"📊 Nombre de documents dans la base vectorielle : {len(vectordb)}")
+    print("✅ Base vectorielle prête à l'emploi.")
+
+    # Nettoyage
+    print("🧹 Nettoyage de la mémoire en cours...")
+    vectordb = None  # Libération de la mémoire
+    print("🧹 Nettoyage de la mémoire terminé.")
+    print("✅ Processus de création de la base vectorielle terminé avec succès.")
+
+    
 if __name__ == "__main__":
     try:
         build_vectorstore()
