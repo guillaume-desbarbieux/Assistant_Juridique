@@ -101,17 +101,17 @@ if st.button("📤 Envoyer") and user_input.strip():
 Tu es un assistant juridique expert.
 Tu dois faciliter le travail des juristes en présentant les documents qui peuvent leur être utile pour répondre.
 Tu dois répondre en français, de manière claire et précise.
-Base ta réponse uniquement sur les documents fournis.
-Si tu n'as pas assez d'information, dis-le clairement.
-Ne fais aucune supposition.
+Base ta réponse uniquement sur les CONTEXTES ci-dessous.
+Si tu n'as pas de CONTEXTE pertinent, indique-le clairement et refuse de répondre.
+Ne fais aucune supposition et ne génère pas d'information non présente dans les CONTEXTES.
 
-Documents:
+CONTEXTES :
 {context}
 
-Question:
+QUESTION :
 {question}
 
-Réponse en français :
+RÉPONSE EN FRANÇAIS :
 """
         prompt = PromptTemplate(
             input_variables=["context", "question"],
