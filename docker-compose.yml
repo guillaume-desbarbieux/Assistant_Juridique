@@ -11,7 +11,7 @@ services:
       - assistant-net
     environment:
       - OLLAMA_MODELS=mistral
-    command: bash -c "ollama run mistral || true && sleep infinity"
+    command: [ "sh", "-c", "ollama run mistral || true && sleep infinity" ]
       
   assistant:
     build: .
