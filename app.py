@@ -48,56 +48,61 @@ def distance_to_percent(score, max_dist=10.0):
     return round((1 - score / max_dist) * 100)
 
 if st.button("📤 Envoyer") and user_input.strip():
-    with st.spinner("Recherche et génération de la réponse..."):
-
-        # Charger la base vectorielle
+    # 1. Recherche de documents pertinents
+    with st.spinner("Recherche des documents pertinents..."):
         embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
         db = Chroma(persist_directory="./db", embedding_function=embeddings)
         retriever = db.as_retriever(search_kwargs={"k": max_docs})
-
-       # Récupération des documents pertinents avec score
         docs_and_scores = retriever.vectorstore.similarity_search_with_score(user_input, k=max_docs)
-        # Ajout de la pertinence (%) à chaque document
         docs_scores_pertinences = [
             (doc, score, distance_to_percent(score, max_dist=10.0))
             for doc, score in docs_and_scores
         ]
-
-        # Conversion du seuil de pertinence (%) en distance maximale
         max_dist = 10.0
         distance_seuil = max_dist * (1 - similarity_threshold / 100)
-        # On garde uniquement les documents avec une distance <= distance_seuil
         filtered_docs = [
             (doc, score, pertinence)
             for doc, score, pertinence in docs_scores_pertinences
             if pertinence >= similarity_threshold
         ]
 
+    # 2. Affichage des documents pertinents
+    st.subheader("📎 Documents pertinents trouvés")
+    if not filtered_docs:
+        st.warning("❗ Aucun document suffisamment pertinent trouvé pour cette question.")
+        st.info("L'assistant ne peut pas formuler de réponse fiable sans documents de référence.")
+    else:
+        for idx, (doc, score, pertinence) in enumerate(filtered_docs, 1):
+            source = os.path.basename(doc.metadata.get('source', 'inconnu'))
+            st.markdown(f"### 📄 Document {idx} — {source} (🔍 Pertinence : {pertinence}%)")
+            st.markdown(
+                f"""
+                <div style=\"white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;\">
+                    {doc.page_content}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-        # LLM via Ollama
-        model_name = "mistral:latest"
-        base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-
-        # Vérification Ollama accessible
-        import requests
-
-        def check_ollama_is_alive():
-            try:
-                r = requests.get(f"{base_url}/api/generate")
-                if r.status_code in [404, 405]:
-                    return True
-                else:
-                    st.error(f"Ollama ne répond pas correctement (code {r.status_code})")
+        # 3. Génération de la réponse
+        with st.spinner("Génération de la réponse..."):
+            model_name = "mistral:latest"
+            base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+            import requests
+            def check_ollama_is_alive():
+                try:
+                    r = requests.get(f"{base_url}/api/generate")
+                    if r.status_code in [404, 405]:
+                        return True
+                    else:
+                        st.error(f"Ollama ne répond pas correctement (code {r.status_code})")
+                        st.stop()
+                except Exception as e:
+                    st.error(f"Ollama semble injoignable : {e}")
                     st.stop()
-            except Exception as e:
-                st.error(f"Ollama semble injoignable : {e}")
-                st.stop()
-        check_ollama_is_alive()
-
-        oai = Ollama(model=model_name, base_url=base_url)
-        
-        # Création du prompt personnalisé
-        prompt_template = """
+            check_ollama_is_alive()
+            oai = Ollama(model=model_name, base_url=base_url)
+            prompt_template = """
 Tu es un assistant juridique expert.
 Tu dois faciliter le travail des juristes en présentant les documents qui peuvent leur être utile pour répondre.
 Tu dois répondre en français, de manière claire et précise.
@@ -113,47 +118,27 @@ QUESTION :
 
 RÉPONSE EN FRANÇAIS :
 """
-        prompt = PromptTemplate(
-            input_variables=["context", "question"],
-            template=prompt_template
-        )
-
-        # Création de la chaîne LLMChain avec le prompt
-        qa_chain = LLMChain(llm=oai, prompt=prompt)
-
-        if not filtered_docs:
-            st.warning("❗ Aucun document suffisamment pertinent trouvé pour cette question.")
-            st.info("L'assistant ne peut pas formuler de réponse fiable sans documents de référence.")
-        else:
+            prompt = PromptTemplate(
+                input_variables=["context", "question"],
+                template=prompt_template
+            )
+            qa_chain = LLMChain(llm=oai, prompt=prompt)
+            context_text = "\n\n".join([
+                f"[Pertinence : {pertinence}%] {doc.page_content}"
+                for doc, score, pertinence in filtered_docs
+            ])
             try:
-                context_text = "\n\n".join([
-                    f"[Pertinence : {pertinence}%] {doc.page_content}"
-                    for doc, score, pertinence in filtered_docs
-                ])
-
                 result = qa_chain.run({"context": context_text, "question": user_input})
+                # 4. Affichage de la réponse
                 st.subheader("✅ Réponse générée")
                 st.write(result)
             except Exception as e:
                 st.error(f"Erreur lors de la génération de la réponse : {e}")
                 st.stop()
 
-            st.subheader("📎 Documents utilisés")
-            for idx, (doc, score, pertinence) in enumerate(filtered_docs, 1):
-                source = os.path.basename(doc.metadata.get('source', 'inconnu'))
-                st.markdown(f"### 📄 Document {idx} — {source} (🔍 Pertinence : {pertinence}%)")
-                st.markdown(
-                    f"""
-                    <div style="white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;">
-                        {doc.page_content}
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-
-        # Affichage debug : tous les documents trouvés avec leur score brut
-        st.subheader("🛠️ Debug : Scores bruts des documents trouvés")
-        for idx, (doc, score, pertinence) in enumerate(docs_scores_pertinences, 1):
-            source = os.path.basename(doc.metadata.get('source', 'inconnu'))
-            st.markdown(f"- **Document {idx} — {source}** : score brut = {score:.4f}")
+    # Affichage debug : tous les documents trouvés avec leur score brut
+    st.subheader("🛠️ Debug : Scores bruts des documents trouvés")
+    for idx, (doc, score, pertinence) in enumerate(docs_scores_pertinences, 1):
+        source = os.path.basename(doc.metadata.get('source', 'inconnu'))
+        st.markdown(f"- **Document {idx} — {source}** : score brut = {score:.4f}")
 
