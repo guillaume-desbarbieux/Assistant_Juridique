@@ -37,7 +37,7 @@ if st.button("📤 Envoyer") and user_input.strip():
     with st.spinner("Recherche et génération de la réponse..."):
 
         # Charger la base vectorielle
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
         db = Chroma(persist_directory="./db", embedding_function=embeddings)
         retriever = db.as_retriever(search_kwargs={"k": max_docs})
 

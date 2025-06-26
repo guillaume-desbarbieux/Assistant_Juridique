@@ -8,4 +8,4 @@ RUN pip install --no-cache-dir --upgrade pip && pip install --no-cache-dir -r re
 
 RUN python setup_vectorstore.py
 
-CMD ["python", "main.py"]
+CMD ["python", "app.py"]

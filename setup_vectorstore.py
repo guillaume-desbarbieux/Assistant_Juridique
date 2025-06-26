@@ -39,7 +39,7 @@ def build_vectorstore():
 
     # Embeddings
     print("🔍 Création des embeddings...")
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
 
     # Création ou mise à jour de la base vectorielle
     print("🔄 Création ou mise à jour de la base vectorielle...")
