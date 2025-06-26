@@ -142,3 +142,9 @@ Réponse en français :
                         unsafe_allow_html=True
                     )
 
+        # Affichage debug : tous les documents trouvés avec leur score brut
+        st.subheader("🛠️ Debug : Scores bruts des documents trouvés")
+        for idx, (doc, score) in enumerate(docs_and_scores, 1):
+            source = os.path.basename(doc.metadata.get('source', 'inconnu'))
+            st.markdown(f"- **Document {idx} — {source}** : score brut = {score:.4f}")
+
