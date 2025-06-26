@@ -24,12 +24,13 @@ max_docs = st.sidebar.slider(
     step=1
 )
 
+# Slider de pertinence exprimé en % (0 = tout passe, 100 = très strict)
 similarity_threshold = st.sidebar.slider(
     "Seuil de pertinence (%)",
     min_value=0,
-    max_value=200,
-    value=90,
-    step=5
+    max_value=100,
+    value=80,
+    step=1
 )
 
 
@@ -56,11 +57,21 @@ if st.button("📤 Envoyer") and user_input.strip():
 
        # Récupération des documents pertinents avec score
         docs_and_scores = retriever.vectorstore.similarity_search_with_score(user_input, k=max_docs)
+        # Ajout de la pertinence (%) à chaque document
+        docs_scores_pertinences = [
+            (doc, score, distance_to_percent(score, max_dist=10.0))
+            for doc, score in docs_and_scores
+        ]
 
-        # Optionnel : seuil de similarité à ajuster si besoin
-        threshold_value = similarity_threshold / 100
-        # On garde uniquement les documents avec une distance suffisante (score <= seuil)
-        filtered_docs = [(doc, score) for doc, score in docs_and_scores if score <= threshold_value]
+        # Conversion du seuil de pertinence (%) en distance maximale
+        max_dist = 10.0
+        distance_seuil = max_dist * (1 - similarity_threshold / 100)
+        # On garde uniquement les documents avec une distance <= distance_seuil
+        filtered_docs = [
+            (doc, score, pertinence)
+            for doc, score, pertinence in docs_scores_pertinences
+            if pertinence >= similarity_threshold
+        ]
 
 
         # LLM via Ollama
@@ -116,8 +127,8 @@ Réponse en français :
         else:
             try:
                 context_text = "\n\n".join([
-                    f"[Pertinence : {distance_to_percent(score)}%] {doc.page_content}"
-                    for doc, score in docs_and_scores if score <= threshold_value
+                    f"[Pertinence : {pertinence}%] {doc.page_content}"
+                    for doc, score, pertinence in filtered_docs
                 ])
 
                 result = qa_chain.run({"context": context_text, "question": user_input})
@@ -128,23 +139,21 @@ Réponse en français :
                 st.stop()
 
             st.subheader("📎 Documents utilisés")
-            for idx, (doc, score) in enumerate(docs_and_scores, 1):
-                if score <= threshold_value:
-                    source = os.path.basename(doc.metadata.get('source', 'inconnu'))
-                    pertinence = distance_to_percent(score)
-                    st.markdown(f"### 📄 Document {idx} — {source} (🔍 Pertinence : {pertinence}%)")
-                    st.markdown(
-                        f"""
-                        <div style="white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;">
-                            {doc.page_content}
-                        </div>
-                        """,
-                        unsafe_allow_html=True
-                    )
+            for idx, (doc, score, pertinence) in enumerate(filtered_docs, 1):
+                source = os.path.basename(doc.metadata.get('source', 'inconnu'))
+                st.markdown(f"### 📄 Document {idx} — {source} (🔍 Pertinence : {pertinence}%)")
+                st.markdown(
+                    f"""
+                    <div style="white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;">
+                        {doc.page_content}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
         # Affichage debug : tous les documents trouvés avec leur score brut
         st.subheader("🛠️ Debug : Scores bruts des documents trouvés")
-        for idx, (doc, score) in enumerate(docs_and_scores, 1):
+        for idx, (doc, score, pertinence) in enumerate(docs_scores_pertinences, 1):
             source = os.path.basename(doc.metadata.get('source', 'inconnu'))
             st.markdown(f"- **Document {idx} — {source}** : score brut = {score:.4f}")
 
