@@ -74,35 +74,35 @@ if st.button("📤 Envoyer") and user_input.strip():
     else:
         for idx, (doc, score, pertinence) in enumerate(filtered_docs, 1):
             source = os.path.basename(doc.metadata.get('source', 'inconnu'))
-            st.markdown(f"### 📄 Document {idx} — {source} (🔍 Pertinence : {pertinence}%)")
-            st.markdown(
-                f"""
-                <div style=\"white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;\">
-                    {doc.page_content}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+            with st.expander(f"📄 Document {idx} — {source} (🔍 Pertinence : {pertinence}%)", expanded=False):
+                st.markdown(
+                    f"""
+                    <div style=\"white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;\">
+                        {doc.page_content}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
-        # 3. Génération de la réponse
-        with st.spinner("Génération de la réponse..."):
-            model_name = "mistral:latest"
-            base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-            import requests
-            def check_ollama_is_alive():
-                try:
-                    r = requests.get(f"{base_url}/api/generate")
-                    if r.status_code in [404, 405]:
-                        return True
-                    else:
-                        st.error(f"Ollama ne répond pas correctement (code {r.status_code})")
-                        st.stop()
-                except Exception as e:
-                    st.error(f"Ollama semble injoignable : {e}")
+    # 3. Génération de la réponse
+    with st.spinner("Génération de la réponse..."):
+        model_name = "mistral:latest"
+        base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+        import requests
+        def check_ollama_is_alive():
+            try:
+                r = requests.get(f"{base_url}/api/generate")
+                if r.status_code in [404, 405]:
+                    return True
+                else:
+                    st.error(f"Ollama ne répond pas correctement (code {r.status_code})")
                     st.stop()
-            check_ollama_is_alive()
-            oai = Ollama(model=model_name, base_url=base_url)
-            prompt_template = """
+            except Exception as e:
+                st.error(f"Ollama semble injoignable : {e}")
+                st.stop()
+        check_ollama_is_alive()
+        oai = Ollama(model=model_name, base_url=base_url)
+        prompt_template = """
 Tu es un assistant juridique expert.
 Tu dois faciliter le travail des juristes en présentant les documents qui peuvent leur être utile pour répondre.
 Tu dois répondre en français, de manière claire et précise.
@@ -118,27 +118,36 @@ QUESTION :
 
 RÉPONSE EN FRANÇAIS :
 """
-            prompt = PromptTemplate(
-                input_variables=["context", "question"],
-                template=prompt_template
-            )
-            qa_chain = LLMChain(llm=oai, prompt=prompt)
-            context_text = "\n\n".join([
-                f"[Pertinence : {pertinence}%] {doc.page_content}"
-                for doc, score, pertinence in filtered_docs
-            ])
-            try:
-                result = qa_chain.run({"context": context_text, "question": user_input})
-                # 4. Affichage de la réponse
-                st.subheader("✅ Réponse générée")
-                st.write(result)
-            except Exception as e:
-                st.error(f"Erreur lors de la génération de la réponse : {e}")
-                st.stop()
+        prompt = PromptTemplate(
+            input_variables=["context", "question"],
+            template=prompt_template
+        )
+        qa_chain = LLMChain(llm=oai, prompt=prompt)
+        context_text = "\n\n".join([
+            f"[Pertinence : {pertinence}%] {doc.page_content}"
+            for doc, score, pertinence in filtered_docs
+        ])
+        try:
+            result = qa_chain.run({"context": context_text, "question": user_input})
+            # 4. Affichage de la réponse
+            st.subheader("✅ Réponse générée")
+            st.write(result)
+        except Exception as e:
+            st.error(f"Erreur lors de la génération de la réponse : {e}")
+            st.stop()
 
-    # Affichage debug : tous les documents trouvés avec leur score brut
-    st.subheader("🛠️ Debug : Scores bruts des documents trouvés")
+    # Affichage debug : tous les documents trouvés avec leur score brut, leur pertinence et leur contenu
+    st.subheader("🛠️ Debug : Tous les documents trouvés (pertinents et non pertinents)")
     for idx, (doc, score, pertinence) in enumerate(docs_scores_pertinences, 1):
         source = os.path.basename(doc.metadata.get('source', 'inconnu'))
-        st.markdown(f"- **Document {idx} — {source}** : score brut = {score:.4f}")
+        pertinent = "✅" if (doc, score, pertinence) in filtered_docs else "❌"
+        with st.expander(f"{pertinent} Document {idx} — {source} | score brut = {score:.4f}, pertinence = {pertinence}%", expanded=False):
+            st.markdown(
+                f"""
+                <div style=\"white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;\">
+                    {doc.page_content}
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
