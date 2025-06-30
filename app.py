@@ -51,7 +51,7 @@ if not selected_bases:
     st.stop()
 
 # Champ de saisie utilisateur
-user_input = st.text_area("✉️ Votre question :", height=200)
+user_input = st.text_area("✉️ Votre question :", height=150)
 user_prompt_intro = st.text_area(
     "Début du prompt (modifiable)",
     value="""Tu es un assistant juridique expert.
@@ -60,7 +60,7 @@ user_prompt_intro = st.text_area(
     Base ta réponse uniquement sur les CONTEXTES ci-dessous.
     Si tu n'as pas de CONTEXTE, indique-le clairement et refuse de répondre.
     Ne fais aucune supposition et ne génère pas d'information non présente dans les CONTEXTES.""",
-    height=120,
+    height=150,
     key="prompt_intro"
 )
 
