@@ -6,6 +6,19 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import os
 
+@st.cache_resource(show_spinner=False)
+def get_embeddings():
+    return HuggingFaceEmbeddings(
+        model_name="sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+        model_kwargs={"device": "cpu"}
+    )
+
+@st.cache_resource(show_spinner=False)
+def get_chroma(_embeddings):
+    return Chroma(persist_directory="./db", embedding_function=_embeddings)
+
+
+
 st.set_page_config(page_title="Assistant Juridique IA", layout="wide")
 st.title("📚 Assistant Juridique avec IA")
 
@@ -74,16 +87,15 @@ def distance_to_percent(score, max_dist=10.0):
 
 if st.button("📤 Envoyer") and user_input.strip():
     # 1. Recherche de documents pertinents
+    def get_base_key(meta):
+        val = meta.get("source", "")
+        return os.path.basename(str(val)).lower().replace(".txt", "")
+
     with st.spinner("Recherche des documents pertinents..."):
         embeddings = get_embeddings()
         db = get_chroma(embeddings)
         retriever = db.as_retriever(search_kwargs={"k": max_docs})
         docs_and_scores = retriever.vectorstore.similarity_search_with_score(user_input, k=30)
-        # Filtrage robuste selon la base documentaire sélectionnée
-        def get_base_key(meta):
-            val = meta.get("source", "")
-            return os.path.basename(str(val)).lower().replace(".txt", "")
-
         docs_and_scores = [
             (doc, score) for doc, score in docs_and_scores
             if get_base_key(doc.metadata) in selected_bases
@@ -195,15 +207,3 @@ RÉPONSE EN FRANÇAIS :
             except Exception as e:
                 st.error(f"Erreur lors de la génération de la réponse : {e}")
                 st.stop()
-
-@st.cache_resource(show_spinner=False)
-def get_embeddings():
-    return HuggingFaceEmbeddings(
-        model_name="sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
-        model_kwargs={"device": "cpu"}
-    )
-
-@st.cache_resource(show_spinner=False)
-def get_chroma(embeddings):
-    return Chroma(persist_directory="./db", embedding_function=embeddings)
-
