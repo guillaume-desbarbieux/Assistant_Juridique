@@ -82,10 +82,12 @@ if st.button("📤 Envoyer") and user_input.strip():
         retriever = db.as_retriever(search_kwargs={"k": max_docs})
         docs_and_scores = retriever.vectorstore.similarity_search_with_score(user_input, k=30)
         # Filtrage selon la base documentaire sélectionnée
-        docs_and_scores = [
-            (doc, score) for doc, score in docs_and_scores
-            if doc.metadata.get("source") in selected_bases
-        ][:max_docs]
+        # docs_and_scores = [
+        #     (doc, score) for doc, score in docs_and_scores
+        #     if doc.metadata.get("source") in selected_bases
+        # ][:max_docs]
+        # Désactivation temporaire du filtrage pour diagnostic
+        docs_and_scores = docs_and_scores[:max_docs]
         docs_scores_pertinences = [
             (doc, score, distance_to_percent(score, max_dist=10.0))
             for doc, score in docs_and_scores
