@@ -232,9 +232,9 @@ RÉPONSE EN FRANÇAIS :
                     "question": user_input,
                     "user_prompt_intro": user_prompt_intro.strip()
                 })
-                st.subheader("✅ Réponse générée")
+                st.success(f"✅ Réponse générée par le LLM ({time.time()-t0:.2f}s)")
                 st.write(result)
             except Exception as e:
                 st.error(f"Erreur lors de la génération de la réponse : {e}")
                 st.stop()
-        st.success(f"✅ Réponse générée par le LLM ({time.time()-t0:.2f}s)")
+        
