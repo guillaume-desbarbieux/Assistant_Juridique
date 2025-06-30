@@ -88,8 +88,14 @@ def distance_to_percent(score, max_dist=10.0):
 if st.button("📤 Envoyer") and user_input.strip():
     # 1. Recherche de documents pertinents
     def get_base_key(meta):
-        val = meta.get("source", "")
-        return os.path.basename(str(val)).lower().replace(".txt", "")
+        val = str(meta.get("source", "")).lower()
+        if "archives_mails" in val:
+            return "archives_mails"
+        if "textes_loi" in val:
+            return "textes_loi"
+        if "jurisprudence" in val:
+            return "jurisprudence"
+        return os.path.basename(val).replace(".txt", "")
 
     with st.spinner("Recherche des documents pertinents..."):
         embeddings = get_embeddings()
