@@ -75,7 +75,9 @@ def distance_to_percent(score, max_dist=10.0):
 if st.button("📤 Envoyer") and user_input.strip():
     # 1. Recherche de documents pertinents
     with st.spinner("Recherche des documents pertinents..."):
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-mpnet-base-v2")
+        embeddings = HuggingFaceEmbeddings(
+            model_name="sentence-transformers/paraphrase-multilingual-mpnet-base-v2",
+            model_kwargs={"device": "cpu"})
         db = Chroma(persist_directory="./db", embedding_function=embeddings)
         retriever = db.as_retriever(search_kwargs={"k": max_docs})
         docs_and_scores = retriever.vectorstore.similarity_search_with_score(user_input, k=30)
