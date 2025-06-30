@@ -50,6 +50,25 @@ if not selected_bases:
     st.sidebar.warning("⚠️ Veuillez sélectionner au moins une base de documents pour continuer.")
     st.stop()
 
+# Affichage du nombre de documents/chunks par base
+if os.path.exists("./db"):
+    try:
+        embeddings_tmp = HuggingFaceEmbeddings(model_name="sentence-transformers/paraphrase-multilingual-mpnet-base-v2", model_kwargs={"device": "cpu"})
+        db_tmp = Chroma(persist_directory="./db", embedding_function=embeddings_tmp)
+        all_docs = db_tmp.get()['documents']
+        all_metas = db_tmp.get()['metadatas']
+        base_counts = {key: 0 for _, key in base_options}
+        for meta in all_metas:
+            source = meta.get('source', None)
+            if source in base_counts:
+                base_counts[source] += 1
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("**Documents par base :**")
+        for label, key in base_options:
+            st.sidebar.markdown(f"- {label} : {base_counts[key]} chunk(s)")
+    except Exception as e:
+        st.sidebar.markdown(f"Erreur lors du comptage des documents : {e}")
+
 # Champ de saisie utilisateur
 user_input = st.text_area("✉️ Votre question :", height=150)
 user_prompt_intro = st.text_area(
@@ -81,13 +100,15 @@ if st.button("📤 Envoyer") and user_input.strip():
         db = Chroma(persist_directory="./db", embedding_function=embeddings)
         retriever = db.as_retriever(search_kwargs={"k": max_docs})
         docs_and_scores = retriever.vectorstore.similarity_search_with_score(user_input, k=30)
-        # Filtrage selon la base documentaire sélectionnée
-        # docs_and_scores = [
-        #     (doc, score) for doc, score in docs_and_scores
-        #     if doc.metadata.get("source") in selected_bases
-        # ][:max_docs]
-        # Désactivation temporaire du filtrage pour diagnostic
-        docs_and_scores = docs_and_scores[:max_docs]
+        # Filtrage robuste selon la base documentaire sélectionnée
+        def get_base_key(meta):
+            val = meta.get("source", "")
+            return os.path.basename(str(val)).lower().replace(".txt", "")
+
+        docs_and_scores = [
+            (doc, score) for doc, score in docs_and_scores
+            if get_base_key(doc.metadata) in selected_bases
+        ][:max_docs]
         docs_scores_pertinences = [
             (doc, score, distance_to_percent(score, max_dist=10.0))
             for doc, score in docs_and_scores
