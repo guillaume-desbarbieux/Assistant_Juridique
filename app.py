@@ -253,8 +253,12 @@ RÉPONSE EN FRANÇAIS :
                         })
                         status_msgs.append(f"✅ Réponse générée par le LLM ({time.time()-t0:.2f}s)")
                         st.success(status_msgs[-1])
-                        st.write(result)
                     except Exception as e:
                         st.error(f"Erreur lors de la génération de la réponse : {e}")
                         st.stop()
+            # Affichage de la réponse dans la colonne principale
+            with main_col:
+                if 'result' in locals():
+                    st.subheader("✅ Réponse générée")
+                    st.write(result)
 
