@@ -132,6 +132,9 @@ if st.button("📤 Envoyer") and user_input.strip():
                     <div style=\"white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;\">
                         {doc.page_content}
                     </div>
+                    <hr/>
+                    <b>Métadonnées brutes :</b>
+                    <pre>{doc.metadata}</pre>
                     """,
                     unsafe_allow_html=True
                 )
