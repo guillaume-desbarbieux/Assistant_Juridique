@@ -97,15 +97,26 @@ if st.button("📤 Envoyer") and user_input.strip():
             return "jurisprudence"
         return os.path.basename(val).replace(".txt", "")
 
-    with st.spinner("Recherche des documents pertinents..."):
+    # Spinner pour chargement des embeddings
+    with st.spinner("Chargement des embeddings HuggingFace..."):
         embeddings = get_embeddings()
+    # Spinner pour chargement de la base Chroma
+    with st.spinner("Connexion à la base vectorielle Chroma..."):
         db = get_chroma(embeddings)
+    # Spinner pour création du retriever
+    with st.spinner("Préparation du moteur de recherche sémantique..."):
         retriever = db.as_retriever(search_kwargs={"k": max_docs})
+    # Spinner pour la recherche vectorielle
+    with st.spinner("Recherche des documents les plus proches dans la base..."):
         docs_and_scores = retriever.vectorstore.similarity_search_with_score(user_input, k=30)
+    # Spinner pour le filtrage par base
+    with st.spinner("Filtrage des documents selon les bases sélectionnées..."):
         docs_and_scores = [
             (doc, score) for doc, score in docs_and_scores
             if get_base_key(doc.metadata) in selected_bases
         ][:max_docs]
+    # Spinner pour le calcul des pertinences et filtrage final
+    with st.spinner("Calcul des pertinences et sélection des documents pertinents..."):
         docs_scores_pertinences = [
             (doc, score, distance_to_percent(score, max_dist=10.0))
             for doc, score in docs_and_scores
