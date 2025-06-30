@@ -87,126 +87,145 @@ def distance_to_percent(score, max_dist=10.0):
     return round((1 - score / max_dist) * 100)
 
 if st.button("📤 Envoyer") and user_input.strip():
-    def get_base_key(meta):
-        val = str(meta.get("source", "")).lower()
-        if "archives_mails" in val:
-            return "archives_mails"
-        if "textes_loi" in val:
-            return "textes_loi"
-        if "jurisprudence" in val:
-            return "jurisprudence"
-        return os.path.basename(val).replace(".txt", "")
+    # Créer une colonne principale et une colonne latérale droite
+    main_col, status_col = st.columns([3, 1])
+    with main_col:
+        def get_base_key(meta):
+            val = str(meta.get("source", "")).lower()
+            if "archives_mails" in val:
+                return "archives_mails"
+            if "textes_loi" in val:
+                return "textes_loi"
+            if "jurisprudence" in val:
+                return "jurisprudence"
+            return os.path.basename(val).replace(".txt", "")
 
-    # Spinner pour chargement des embeddings
-    t0 = time.time()
-    with st.spinner("Chargement des embeddings HuggingFace..."):
-        embeddings = get_embeddings()
-    st.success(f"✅ Embeddings chargés ({time.time()-t0:.2f}s)")
+        # Champ pour stocker les messages de statut
+        status_msgs = []
 
-    t0 = time.time()
-    with st.spinner("Connexion à la base vectorielle Chroma..."):
-        db = get_chroma(embeddings)
-    st.success(f"✅ Base Chroma connectée ({time.time()-t0:.2f}s)")
+        # Spinner pour chargement des embeddings
+        t0 = time.time()
+        with status_col:
+            with st.spinner("Chargement des embeddings HuggingFace..."):
+                embeddings = get_embeddings()
+            status_msgs.append(f"✅ Embeddings chargés ({time.time()-t0:.2f}s)")
+            st.success(status_msgs[-1])
 
-    t0 = time.time()
-    with st.spinner("Préparation du moteur de recherche sémantique..."):
-        retriever = db.as_retriever(search_kwargs={"k": max_docs})
-    st.success(f"✅ Moteur de recherche prêt ({time.time()-t0:.2f}s)")
+        t0 = time.time()
+        with status_col:
+            with st.spinner("Connexion à la base vectorielle Chroma..."):
+                db = get_chroma(embeddings)
+            status_msgs.append(f"✅ Base Chroma connectée ({time.time()-t0:.2f}s)")
+            st.success(status_msgs[-1])
 
-    t0 = time.time()
-    with st.spinner("Recherche des documents les plus proches dans la base..."):
-        docs_and_scores = retriever.vectorstore.similarity_search_with_score(user_input, k=30)
-    st.success(f"✅ Recherche vectorielle terminée ({time.time()-t0:.2f}s)")
+        t0 = time.time()
+        with status_col:
+            with st.spinner("Préparation du moteur de recherche sémantique..."):
+                retriever = db.as_retriever(search_kwargs={"k": max_docs})
+            status_msgs.append(f"✅ Moteur de recherche prêt ({time.time()-t0:.2f}s)")
+            st.success(status_msgs[-1])
 
-    t0 = time.time()
-    with st.spinner("Filtrage des documents selon les bases sélectionnées..."):
-        docs_and_scores = [
-            (doc, score) for doc, score in docs_and_scores
-            if get_base_key(doc.metadata) in selected_bases
-        ][:max_docs]
-    st.success(f"✅ Filtrage par base terminé ({time.time()-t0:.2f}s)")
+        t0 = time.time()
+        with status_col:
+            with st.spinner("Recherche des documents les plus proches dans la base..."):
+                docs_and_scores = retriever.vectorstore.similarity_search_with_score(user_input, k=30)
+            status_msgs.append(f"✅ Recherche vectorielle terminée ({time.time()-t0:.2f}s)")
+            st.success(status_msgs[-1])
 
-    t0 = time.time()
-    with st.spinner("Calcul des pertinences et sélection des documents pertinents..."):
-        docs_scores_pertinences = [
-            (doc, score, distance_to_percent(score, max_dist=10.0))
-            for doc, score in docs_and_scores
-        ]
-        max_dist = 10.0
-        distance_seuil = max_dist * (1 - similarity_threshold / 100)
-        filtered_docs = [
-            (doc, score, pertinence)
-            for doc, score, pertinence in docs_scores_pertinences
-            if pertinence >= similarity_threshold
-        ]
-    st.success(f"✅ Pertinences calculées et documents sélectionnés ({time.time()-t0:.2f}s)")
+        t0 = time.time()
+        with status_col:
+            with st.spinner("Filtrage des documents selon les bases sélectionnées..."):
+                docs_and_scores = [
+                    (doc, score) for doc, score in docs_and_scores
+                    if get_base_key(doc.metadata) in selected_bases
+                ][:max_docs]
+            status_msgs.append(f"✅ Filtrage par base terminé ({time.time()-t0:.2f}s)")
+            st.success(status_msgs[-1])
 
-    # 2. Affichage des documents pertinents
-    st.subheader("📎 Documents pertinents trouvés")
-    if not filtered_docs:
-        # Calcul de la meilleure pertinence trouvée
-        best_pertinence = max((p for _, _, p in docs_scores_pertinences), default=None)
-        st.warning("❗ Aucun document suffisamment pertinent trouvé pour cette question.")
-        st.info("L'assistant ne peut pas formuler de réponse fiable sans documents de référence.")
-        if best_pertinence is not None:
-            st.info(f"💡 Astuce : La meilleure pertinence trouvée est {best_pertinence}%. Essayez de baisser le seuil de pertinence dans les paramètres avancés pour augmenter vos chances de trouver des documents pertinents.")
+        t0 = time.time()
+        with status_col:
+            with st.spinner("Calcul des pertinences et sélection des documents pertinents..."):
+                docs_scores_pertinences = [
+                    (doc, score, distance_to_percent(score, max_dist=10.0))
+                    for doc, score in docs_and_scores
+                ]
+                max_dist = 10.0
+                distance_seuil = max_dist * (1 - similarity_threshold / 100)
+                filtered_docs = [
+                    (doc, score, pertinence)
+                    for doc, score, pertinence in docs_scores_pertinences
+                    if pertinence >= similarity_threshold
+                ]
+            status_msgs.append(f"✅ Pertinences calculées et documents sélectionnés ({time.time()-t0:.2f}s)")
+            st.success(status_msgs[-1])
+
+        # 2. Affichage des documents pertinents
+        st.subheader("📎 Documents pertinents trouvés")
+        if not filtered_docs:
+            # Calcul de la meilleure pertinence trouvée
+            best_pertinence = max((p for _, _, p in docs_scores_pertinences), default=None)
+            st.warning("❗ Aucun document suffisamment pertinent trouvé pour cette question.")
+            st.info("L'assistant ne peut pas formuler de réponse fiable sans documents de référence.")
+            if best_pertinence is not None:
+                st.info(f"💡 Astuce : La meilleure pertinence trouvée est {best_pertinence}%. Essayez de baisser le seuil de pertinence dans les paramètres avancés pour augmenter vos chances de trouver des documents pertinents.")
+            else:
+                st.info("💡 Astuce : Essayez de baisser le seuil de pertinence dans les paramètres avancés pour augmenter vos chances de trouver des documents pertinents.")
+            st.stop()
         else:
-            st.info("💡 Astuce : Essayez de baisser le seuil de pertinence dans les paramètres avancés pour augmenter vos chances de trouver des documents pertinents.")
-        st.stop()
-    else:
-        for idx, (doc, score, pertinence) in enumerate(filtered_docs, 1):
-            source = os.path.basename(doc.metadata.get('source', 'inconnu'))
-            with st.expander(f"📄 Document {idx} — {source} (🔍 Pertinence : {pertinence}%)", expanded=False):
-                st.markdown(
-                    f"""
-                    <div style=\"white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;\">
-                        {doc.page_content}
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-
-        # Affichage debug : tous les documents trouvés avec leur score brut, leur pertinence et leur contenu
-        st.subheader("🛠️ Debug : Tous les documents trouvés (pertinents et non pertinents)")
-        if docs_scores_pertinences:
-            for idx, (doc, score, pertinence) in enumerate(docs_scores_pertinences, 1):
-                source = os.path.basename(str(doc.metadata.get('source', 'inconnu')))
-                pertinent = "✅" if (doc, score, pertinence) in filtered_docs else "❌"
-                with st.expander(f"{pertinent} Document {idx} — {source} | score brut = {score:.4f}, pertinence = {pertinence}%", expanded=False):
+            for idx, (doc, score, pertinence) in enumerate(filtered_docs, 1):
+                source = os.path.basename(doc.metadata.get('source', 'inconnu'))
+                with st.expander(f"📄 Document {idx} — {source} (🔍 Pertinence : {pertinence}%)", expanded=False):
                     st.markdown(
                         f"""
                         <div style=\"white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;\">
                             {doc.page_content}
                         </div>
-                        <hr/>
-                        <b>Métadonnées brutes :</b>
-                        <pre>{doc.metadata}</pre>
                         """,
                         unsafe_allow_html=True
                     )
-        else:
-            st.info("Aucun document trouvé par la recherche, même avant filtrage.")
 
-        # 3. Génération automatique de la réponse
-        t0 = time.time()
-        with st.spinner("Génération de la réponse..."):
-            model_name = "mistral:latest"
-            base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-            import requests
-            def check_ollama_is_alive():
-                try:
-                    r = requests.get(f"{base_url}/api/generate")
-                    if r.status_code in [404, 405]:
-                        return True
-                    else:
-                        st.error(f"Ollama ne répond pas correctement (code {r.status_code})")
-                        st.stop()
-                except Exception as e:
-                    st.error(f"Ollama semble injoignable : {e}")
-                    st.stop()
-            check_ollama_is_alive()
-            oai = Ollama(model=model_name, base_url=base_url)
-            prompt_template = f"""
+            # Affichage debug : tous les documents trouvés avec leur score brut, leur pertinence et leur contenu
+            st.subheader("🛠️ Debug : Tous les documents trouvés (pertinents et non pertinents)")
+            if docs_scores_pertinences:
+                for idx, (doc, score, pertinence) in enumerate(docs_scores_pertinences, 1):
+                    source = os.path.basename(str(doc.metadata.get('source', 'inconnu')))
+                    pertinent = "✅" if (doc, score, pertinence) in filtered_docs else "❌"
+                    with st.expander(f"{pertinent} Document {idx} — {source} | score brut = {score:.4f}, pertinence = {pertinence}%", expanded=False):
+                        st.markdown(
+                            f"""
+                            <div style=\"white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;\">
+                                {doc.page_content}
+                            </div>
+                            <hr/>
+                            <b>Métadonnées brutes :</b>
+                            <pre>{doc.metadata}</pre>
+                            """,
+                            unsafe_allow_html=True
+                        )
+            else:
+                st.info("Aucun document trouvé par la recherche, même avant filtrage.")
+
+            # 3. Génération automatique de la réponse
+            t0 = time.time()
+            with status_col:
+                with st.spinner("Génération de la réponse..."):
+                    model_name = "mistral:latest"
+                    base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
+                    import requests
+                    def check_ollama_is_alive():
+                        try:
+                            r = requests.get(f"{base_url}/api/generate")
+                            if r.status_code in [404, 405]:
+                                return True
+                            else:
+                                st.error(f"Ollama ne répond pas correctement (code {r.status_code})")
+                                st.stop()
+                        except Exception as e:
+                            st.error(f"Ollama semble injoignable : {e}")
+                            st.stop()
+                    check_ollama_is_alive()
+                    oai = Ollama(model=model_name, base_url=base_url)
+                    prompt_template = f"""
 {{user_prompt_intro}}
 
 CONTEXTES :
@@ -217,24 +236,25 @@ QUESTION :
 
 RÉPONSE EN FRANÇAIS :
 """
-            prompt = PromptTemplate(
-                input_variables=["context", "question", "user_prompt_intro"],
-                template=prompt_template
-            )
-            qa_chain = LLMChain(llm=oai, prompt=prompt)
-            context_text = "\n\n".join([
-                f"[Pertinence : {pertinence}%] {doc.page_content}"
-                for doc, score, pertinence in filtered_docs
-            ])
-            try:
-                result = qa_chain.run({
-                    "context": context_text,
-                    "question": user_input,
-                    "user_prompt_intro": user_prompt_intro.strip()
-                })
-                st.success(f"✅ Réponse générée par le LLM ({time.time()-t0:.2f}s)")
-                st.write(result)
-            except Exception as e:
-                st.error(f"Erreur lors de la génération de la réponse : {e}")
-                st.stop()
-        
+                    prompt = PromptTemplate(
+                        input_variables=["context", "question", "user_prompt_intro"],
+                        template=prompt_template
+                    )
+                    qa_chain = LLMChain(llm=oai, prompt=prompt)
+                    context_text = "\n\n".join([
+                        f"[Pertinence : {pertinence}%] {doc.page_content}"
+                        for doc, score, pertinence in filtered_docs
+                    ])
+                    try:
+                        result = qa_chain.run({
+                            "context": context_text,
+                            "question": user_input,
+                            "user_prompt_intro": user_prompt_intro.strip()
+                        })
+                        status_msgs.append(f"✅ Réponse générée par le LLM ({time.time()-t0:.2f}s)")
+                        st.success(status_msgs[-1])
+                        st.write(result)
+                    except Exception as e:
+                        st.error(f"Erreur lors de la génération de la réponse : {e}")
+                        st.stop()
+
