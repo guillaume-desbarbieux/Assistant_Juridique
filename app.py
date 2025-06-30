@@ -125,21 +125,24 @@ if st.button("📤 Envoyer") and user_input.strip():
 
         # Affichage debug : tous les documents trouvés avec leur score brut, leur pertinence et leur contenu
         st.subheader("🛠️ Debug : Tous les documents trouvés (pertinents et non pertinents)")
-        for idx, (doc, score, pertinence) in enumerate(docs_scores_pertinences, 1):
-            source = os.path.basename(doc.metadata.get('source', 'inconnu'))
-            pertinent = "✅" if (doc, score, pertinence) in filtered_docs else "❌"
-            with st.expander(f"{pertinent} Document {idx} — {source} | score brut = {score:.4f}, pertinence = {pertinence}%", expanded=False):
-                st.markdown(
-                    f"""
-                    <div style=\"white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;\">
-                        {doc.page_content}
-                    </div>
-                    <hr/>
-                    <b>Métadonnées brutes :</b>
-                    <pre>{doc.metadata}</pre>
-                    """,
-                    unsafe_allow_html=True
-                )
+        if docs_scores_pertinences:
+            for idx, (doc, score, pertinence) in enumerate(docs_scores_pertinences, 1):
+                source = os.path.basename(str(doc.metadata.get('source', 'inconnu')))
+                pertinent = "✅" if (doc, score, pertinence) in filtered_docs else "❌"
+                with st.expander(f"{pertinent} Document {idx} — {source} | score brut = {score:.4f}, pertinence = {pertinence}%", expanded=False):
+                    st.markdown(
+                        f"""
+                        <div style=\"white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;\">
+                            {doc.page_content}
+                        </div>
+                        <hr/>
+                        <b>Métadonnées brutes :</b>
+                        <pre>{doc.metadata}</pre>
+                        """,
+                        unsafe_allow_html=True
+                    )
+        else:
+            st.info("Aucun document trouvé par la recherche, même avant filtrage.")
 
         # 3. Génération automatique de la réponse
         with st.spinner("Génération de la réponse..."):
