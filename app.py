@@ -5,6 +5,7 @@ from langchain_community.llms import Ollama
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 import os
+import time
 
 @st.cache_resource(show_spinner=False)
 def get_embeddings():
@@ -86,7 +87,6 @@ def distance_to_percent(score, max_dist=10.0):
     return round((1 - score / max_dist) * 100)
 
 if st.button("📤 Envoyer") and user_input.strip():
-    # 1. Recherche de documents pertinents
     def get_base_key(meta):
         val = str(meta.get("source", "")).lower()
         if "archives_mails" in val:
@@ -98,24 +98,35 @@ if st.button("📤 Envoyer") and user_input.strip():
         return os.path.basename(val).replace(".txt", "")
 
     # Spinner pour chargement des embeddings
+    t0 = time.time()
     with st.spinner("Chargement des embeddings HuggingFace..."):
         embeddings = get_embeddings()
-    # Spinner pour chargement de la base Chroma
+    st.success(f"✅ Embeddings chargés ({time.time()-t0:.2f}s)")
+
+    t0 = time.time()
     with st.spinner("Connexion à la base vectorielle Chroma..."):
         db = get_chroma(embeddings)
-    # Spinner pour création du retriever
+    st.success(f"✅ Base Chroma connectée ({time.time()-t0:.2f}s)")
+
+    t0 = time.time()
     with st.spinner("Préparation du moteur de recherche sémantique..."):
         retriever = db.as_retriever(search_kwargs={"k": max_docs})
-    # Spinner pour la recherche vectorielle
+    st.success(f"✅ Moteur de recherche prêt ({time.time()-t0:.2f}s)")
+
+    t0 = time.time()
     with st.spinner("Recherche des documents les plus proches dans la base..."):
         docs_and_scores = retriever.vectorstore.similarity_search_with_score(user_input, k=30)
-    # Spinner pour le filtrage par base
+    st.success(f"✅ Recherche vectorielle terminée ({time.time()-t0:.2f}s)")
+
+    t0 = time.time()
     with st.spinner("Filtrage des documents selon les bases sélectionnées..."):
         docs_and_scores = [
             (doc, score) for doc, score in docs_and_scores
             if get_base_key(doc.metadata) in selected_bases
         ][:max_docs]
-    # Spinner pour le calcul des pertinences et filtrage final
+    st.success(f"✅ Filtrage par base terminé ({time.time()-t0:.2f}s)")
+
+    t0 = time.time()
     with st.spinner("Calcul des pertinences et sélection des documents pertinents..."):
         docs_scores_pertinences = [
             (doc, score, distance_to_percent(score, max_dist=10.0))
@@ -128,6 +139,7 @@ if st.button("📤 Envoyer") and user_input.strip():
             for doc, score, pertinence in docs_scores_pertinences
             if pertinence >= similarity_threshold
         ]
+    st.success(f"✅ Pertinences calculées et documents sélectionnés ({time.time()-t0:.2f}s)")
 
     # 2. Affichage des documents pertinents
     st.subheader("📎 Documents pertinents trouvés")
