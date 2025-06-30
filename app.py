@@ -50,20 +50,16 @@ if not selected_bases:
     st.sidebar.warning("⚠️ Veuillez sélectionner au moins une base de documents pour continuer.")
     st.stop()
 
-st.write("Posez une question juridique en lien avec le droit du travail, la jurisprudence ou les clauses contractuelles.")
-
 # Champ de saisie utilisateur
 user_input = st.text_area("✉️ Votre question :", height=200)
 user_prompt_intro = st.text_area(
     "Début du prompt (modifiable)",
-    value="""
-    Tu es un assistant juridique expert.
+    value="""Tu es un assistant juridique expert.
     Tu dois faciliter le travail des juristes en présentant les documents qui peuvent leur être utile pour répondre.
     Tu dois répondre en français, de manière claire et précise.
     Base ta réponse uniquement sur les CONTEXTES ci-dessous.
     Si tu n'as pas de CONTEXTE, indique-le clairement et refuse de répondre.
-    Ne fais aucune supposition et ne génère pas d'information non présente dans les CONTEXTES.
-    """,
+    Ne fais aucune supposition et ne génère pas d'information non présente dans les CONTEXTES.""",
     height=120,
     key="prompt_intro"
 )
@@ -125,23 +121,22 @@ if st.button("📤 Envoyer") and user_input.strip():
                     unsafe_allow_html=True
                 )
 
-    # Affichage debug : tous les documents trouvés avec leur score brut, leur pertinence et leur contenu
-    st.subheader("🛠️ Debug : Tous les documents trouvés (pertinents et non pertinents)")
-    for idx, (doc, score, pertinence) in enumerate(docs_scores_pertinences, 1):
-        source = os.path.basename(doc.metadata.get('source', 'inconnu'))
-        pertinent = "✅" if (doc, score, pertinence) in filtered_docs else "❌"
-        with st.expander(f"{pertinent} Document {idx} — {source} | score brut = {score:.4f}, pertinence = {pertinence}%", expanded=False):
-            st.markdown(
-                f"""
-                <div style=\"white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;\">
-                    {doc.page_content}
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
+        # Affichage debug : tous les documents trouvés avec leur score brut, leur pertinence et leur contenu
+        st.subheader("🛠️ Debug : Tous les documents trouvés (pertinents et non pertinents)")
+        for idx, (doc, score, pertinence) in enumerate(docs_scores_pertinences, 1):
+            source = os.path.basename(doc.metadata.get('source', 'inconnu'))
+            pertinent = "✅" if (doc, score, pertinence) in filtered_docs else "❌"
+            with st.expander(f"{pertinent} Document {idx} — {source} | score brut = {score:.4f}, pertinence = {pertinence}%", expanded=False):
+                st.markdown(
+                    f"""
+                    <div style=\"white-space: pre-wrap; word-wrap: break-word; overflow-x: hidden; background-color: #f9f9f9; padding: 1em; border-radius: 8px; border: 1px solid #ddd;\">
+                        {doc.page_content}
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
-    # 3. Génération de la réponse (sur clic explicite)
-    if st.button("💬 Générer la réponse IA"):
+        # 3. Génération automatique de la réponse
         with st.spinner("Génération de la réponse..."):
             model_name = "mistral:latest"
             base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
@@ -180,8 +175,11 @@ RÉPONSE EN FRANÇAIS :
                 for doc, score, pertinence in filtered_docs
             ])
             try:
-                result = qa_chain.run({"context": context_text, "question": user_input, "user_prompt_intro": user_prompt_intro})
-                # 4. Affichage de la réponse
+                result = qa_chain.run({
+                    "context": context_text,
+                    "question": user_input,
+                    "user_prompt_intro": user_prompt_intro.strip()
+                })
                 st.subheader("✅ Réponse générée")
                 st.write(result)
             except Exception as e:
