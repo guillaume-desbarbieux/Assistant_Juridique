@@ -188,6 +188,7 @@ if st.button("📤 Envoyer") and user_input.strip():
             st.info("Aucun document trouvé par la recherche, même avant filtrage.")
 
         # 3. Génération automatique de la réponse
+        t0 = time.time()
         with st.spinner("Génération de la réponse..."):
             model_name = "mistral:latest"
             base_url = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
@@ -236,3 +237,4 @@ RÉPONSE EN FRANÇAIS :
             except Exception as e:
                 st.error(f"Erreur lors de la génération de la réponse : {e}")
                 st.stop()
+        st.success(f"✅ Réponse générée par le LLM ({time.time()-t0:.2f}s)")
