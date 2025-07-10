@@ -22,10 +22,11 @@ ollama serve
 https://docs.docker.com/engine/install/
 
 
-# Lancer le projet :
+# Cloner et laner le projet :
 
-> Dans le dossier Assistant_Juridique
 ```
+git clone https://github.com/guillaume-desbarbieux/Assistant_Juridique.git
+cd Assistant_Juridique
 docker compose up
 ```
 
